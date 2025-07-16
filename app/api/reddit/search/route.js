@@ -31,13 +31,21 @@ export async function POST(request) {
     });
 
     if (exitCode !== 0) {
-      return new Response(
-        JSON.stringify({ error: stderr || "Scraper failed" }),
-        {
-          status: 500,
-          headers: { "Content-Type": "application/json" },
+      // Try to parse stdout as JSON {error: ...}
+      let msg = stderr.trim();
+      if (!msg && stdout) {
+        try {
+          const parsed = JSON.parse(stdout);
+          if (parsed?.error) msg = parsed.error;
+        } catch (_) {
+          msg = stdout;
         }
-      );
+      }
+      console.error("Scraper failed", { exitCode, msg });
+      return new Response(JSON.stringify({ error: msg || "Scraper failed" }), {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
     return new Response(stdout, {
